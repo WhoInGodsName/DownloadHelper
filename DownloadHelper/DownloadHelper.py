@@ -3,14 +3,51 @@ import tkinter
 from pytubefix import YouTube
 from tkinter import *
 import os
+from moviepy.editor import VideoFileClip, AudioFileClip
 
 def DownloadYTVid(url, res, root, downloading_label):
     downloading_label.config(text="Downloading...")  # Update the label text
 
     def download_video():
         try:
-            yt = YouTube(url).streams.filter(res=res).first().download(output_path="YT_Downloads")
-            downloading_label.config(text="Download complete!")  # Update label after successful download
+            yt = YouTube(url)
+            
+            # Download video stream
+            video_stream = yt.streams.filter(res=res, progressive=False, file_extension='mp4').first()
+            audio_stream = yt.streams.filter(only_audio=True).first()
+            
+            
+
+            video_path = video_stream.download(output_path="YT_Downloads", filename="video.mp4")
+            audio_path = audio_stream.download(output_path="YT_Downloads", filename="audio.mp4")
+
+            # Update paths using os.path.join
+            video_path = os.path.join("YT_Downloads", "video.mp4")
+            audio_path = os.path.join("YT_Downloads", "audio.mp4")
+
+            # Check if files exist
+            if not os.path.exists(video_path) or not os.path.exists(audio_path):
+                downloading_label.config(text="Download failed. Files not found.")
+                return
+
+            # Update label after successful download
+            downloading_label.config(text="Download complete! \n Merging video and audio...")
+
+            # Merging video and audio using MoviePy
+            video_clip = VideoFileClip(video_path)
+            audio_clip = AudioFileClip(audio_path)
+            
+           
+
+            final_clip = video_clip.set_audio(audio_clip)
+            output_path = os.path.join("YT_Downloads", video_stream.default_filename)
+            final_clip.write_videofile(output_path, codec="libx264", audio_codec="aac")
+
+            downloading_label.config(text="Merge complete! Video saved.")
+            
+            os.remove(video_path)
+            os.remove(audio_path)
+
         except Exception as e:
             downloading_label.config(text="Error occurred.")  # Update label if an error occurs
             print(f"Please try again, may have been invalid URL. ERROR: {e}")
